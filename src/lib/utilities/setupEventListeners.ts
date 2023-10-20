@@ -39,22 +39,35 @@ function handleResize(event: Event) {
   getPostByDetermine();
 }
 
-function* renderPosts() {
-  const pagination = 10;
-
-  for (let i = 0; i < pagination; i++) {
-    const post = getPost();
-    yield post;
-  }
+function runPostsQuery(): IPost[] {
+  return new Array(10).map(getPost);
 }
+
+const threshold = 10;
+
+function* generatorPosts(): Generator<IPost> {
+  let test = 1;
+
+  do {
+    const posts = runPostsQuery();
+
+    for (let i = 0; i < posts.length; i++) {
+      const post = posts[i];
+      yield post;
+    }
+
+    test++;
+  } while (test < threshold);
+}
+
+const iterator = generatorPosts();
 
 function handleScroll(event: Event) {
   // const doc = event.target as Document;
   // const rect = app.getBoundingClientRect();
-  const iterator = renderPosts();
 
   const post = iterator.next();
-  const app = document.querySelector("app") as HTMLDivElement;
+  const app = document.querySelector("#app") as HTMLDivElement;
   const div = document.createElement("div");
   div.className = "post";
   div.style.background = post.value.backgroundColor;
