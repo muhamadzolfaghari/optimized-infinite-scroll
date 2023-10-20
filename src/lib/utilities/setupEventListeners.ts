@@ -39,40 +39,74 @@ function handleResize(event: Event) {
   getPostByDetermine();
 }
 
-function runPostsQuery(): IPost[] {
-  return new Array(10).map(getPost);
-}
+const runPostsQuery = (): IPost[] => Array.from(new Array(10)).map(getPost);
 
-const threshold = 10;
+const PAGE_THRESHOLD = 100;
 
-function* generatorPosts(): Generator<IPost> {
-  let test = 1;
+function iteratorFactory() {
+  let iterator: Iterator<IPost>;
 
-  do {
+  function* generatorPosts(): Generator<IPost> {
     const posts = runPostsQuery();
 
     for (let i = 0; i < posts.length; i++) {
       const post = posts[i];
       yield post;
     }
+  }
 
-    test++;
-  } while (test < threshold);
+  iterator = generatorPosts();
+
+  function nextPost() {
+    let result = iterator.next();
+
+    if (result.done) {
+      iterator = generatorPosts();
+    }
+
+    return result.value;
+  }
+
+  return { nextPost };
 }
 
-const iterator = generatorPosts();
+const { nextPost } = iteratorFactory();
 
-function handleScroll(event: Event) {
-  // const doc = event.target as Document;
-  // const rect = app.getBoundingClientRect();
+let canLoad = true;
+let lastTenPostContainers: HTMLDivElement[];
 
-  const post = iterator.next();
-  const app = document.querySelector("#app") as HTMLDivElement;
-  const div = document.createElement("div");
-  div.className = "post";
-  div.style.background = post.value.backgroundColor;
-  div.textContent = post.value.text;
-  app.appendChild(div);
+function handleScroll() {
+  if (lastTenPostContainers) {
+  }
+
+  if (lastTenPostContainers) {
+    const rect = lastTenPostContainers.slice(-1)[0];
+    const style = getComputedStyle(lastTenPostContainers);
+    const bottomEdge =
+      parseInt(style.paddingBottom) + parseInt(style.marginBottom);
+
+    const visibilityRatio = (rect.bottom + bottomEdge) / window.outerHeight;
+    const visibilityPercent = Math.floor(visibilityRatio * 100);
+
+    if (visibilityPercent === 100) {
+      canLoad = true;
+    }
+  } else {
+    canLoad = false;
+  }
+
+  if (canLoad) {
+    const post = nextPost();
+    const app = document.querySelector("#app") as HTMLDivElement;
+    const div = document.createElement("div");
+    app.appendChild(div);
+    div.className = "post";
+    div.textContent = post.text;
+    div.style.background = post.backgroundColor;
+    lastTenPostContainers.push(div);
+  }
+
+  // window.scrollY > rect.bottom - window.outerHeight
 
   //
   // const visiblePx =
