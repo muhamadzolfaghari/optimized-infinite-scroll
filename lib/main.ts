@@ -1,4 +1,4 @@
-export function setupCounter(element: HTMLButtonElement) {
+export function setupOptimizedInfiniteScroll(element: HTMLDivElement) {
   let counter = 0
   const setCounter = (count: number) => {
     counter = count
