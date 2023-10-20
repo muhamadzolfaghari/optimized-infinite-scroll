@@ -10,9 +10,7 @@ const COLORS = [
   "#03a9f4",
   "#ff5722",
   "#4caf50",
-
   "#806e11",
-
   "#cd00e1",
 ];
 
@@ -35,25 +33,33 @@ function getPost(): IPost {
 function getPostByDetermine() {}
 
 function handleResize(event: Event) {
-  const root = event.target as HTMLDivElement;
-  const visibleRatios = 10;
+  // const root = event.target as HTMLDivElement;
+  // const visibleRatios = 10;
+
+  getPostByDetermine();
 }
 
-function handleScroll(event: Event) {
-  const doc = event.target as Document;
-  const app = doc.querySelector("#app") as HTMLDivElement;
-  const rect = app.getBoundingClientRect();
-
+function* renderPosts() {
   const pagination = 10;
 
   for (let i = 0; i < pagination; i++) {
     const post = getPost();
-    const div = document.createElement("div");
-    div.className = "post";
-    div.style.background = post.backgroundColor;
-    div.textContent = post.text;
-    app.appendChild(div);
+    yield post;
   }
+}
+
+function handleScroll(event: Event) {
+  // const doc = event.target as Document;
+  // const rect = app.getBoundingClientRect();
+  const iterator = renderPosts();
+
+  const post = iterator.next();
+  const app = document.querySelector("app") as HTMLDivElement;
+  const div = document.createElement("div");
+  div.className = "post";
+  div.style.background = post.value.backgroundColor;
+  div.textContent = post.value.text;
+  app.appendChild(div);
 
   //
   // const visiblePx =
