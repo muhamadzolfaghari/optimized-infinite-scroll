@@ -57,7 +57,7 @@ function iteratorFactory() {
 
   iterator = generatorPosts();
 
-  function nextPost() {
+  function nextPosts() {
     let result = iterator.next();
 
     if (result.done) {
@@ -67,10 +67,10 @@ function iteratorFactory() {
     return result.value;
   }
 
-  return { nextPost };
+  return { nextPosts };
 }
 
-const { nextPost } = iteratorFactory();
+const { nextPosts } = iteratorFactory();
 
 let canLoad = true;
 let lastTenPostContainers: HTMLDivElement[];
