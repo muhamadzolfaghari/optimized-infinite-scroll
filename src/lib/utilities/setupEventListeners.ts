@@ -5,38 +5,55 @@ const WORDS =
     " "
   );
 
-async function getPost(): Promise<IPost> {
-  const colorIndex = Math.floor(Math.random() * 4 + 1);
-  const wordCount = Math.floor(Math.random() * 50 + (50 + 1));
+const COLORS = [
+  "#bba700",
+  "#03a9f4",
+  "#ff5722",
+  "#4caf50",
 
-  let text = "";
+  "#806e11",
+
+  "#cd00e1",
+];
+
+function getPost(): IPost {
+  const colorIndex = Math.floor(1 + Math.random() * COLORS.length - 1);
+  const wordCount = Math.floor(1 + Math.random() * 50);
+  let textArray = [];
 
   for (let i = 0; i < wordCount; i++) {
-    const wordIndex = Math.floor(Math.random() * 10 + WORDS.length);
-    text += WORDS[wordIndex];
+    const wordIndex = Math.floor(1 + Math.random() * WORDS.length - 1);
+    textArray.push(WORDS[wordIndex]);
   }
 
   return {
-    text,
+    text: textArray.join(" "),
     backgroundColor: COLORS[colorIndex],
   };
 }
 
-function getPostByDetermine() {
-  const post = getPost();
-}
+function getPostByDetermine() {}
 
 function handleResize(event: Event) {
   const root = event.target as HTMLDivElement;
   const visibleRatios = 10;
-
-  getPostByDetermine();
 }
 
 function handleScroll(event: Event) {
   const doc = event.target as Document;
   const app = doc.querySelector("#app") as HTMLDivElement;
   const rect = app.getBoundingClientRect();
+
+  const pagination = 10;
+
+  for (let i = 0; i < pagination; i++) {
+    const post = getPost();
+    const div = document.createElement("div");
+    div.className = "post";
+    div.style.background = post.backgroundColor;
+    div.textContent = post.text;
+    app.appendChild(div);
+  }
 
   //
   // const visiblePx =
@@ -49,8 +66,6 @@ function handleScroll(event: Event) {
     // }
   }
 }
-
-const COLORS = ["#FFEB3B", "#03a9f4", "#ff5722", "#4caf50"];
 
 export default function setupEventListeners() {
   window.addEventListener("resize", handleResize);
