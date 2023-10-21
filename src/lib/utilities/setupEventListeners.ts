@@ -43,67 +43,79 @@ const runPostsQuery = (): IPost[] => Array.from(new Array(10)).map(getPost);
 
 const PAGE_THRESHOLD = 100;
 
-function iteratorFactory() {
-  let iterator: Iterator<IPost>;
+function memorisable<T extends any[]>(func: Function) {
+  let caches: Record<string, IPost[]> = {};
 
-  function* generatorPosts(): Generator<IPost> {
-    const posts = runPostsQuery();
+  return function (...args: T) {
+    const key = args.map(String).join();
+    const result = caches[key];
 
-    for (let i = 0; i < posts.length; i++) {
-      const post = posts[i];
-      yield post;
-    }
-  }
+    console.log(key);
 
-  iterator = generatorPosts();
-
-  function nextPosts() {
-    let result = iterator.next();
-
-    if (result.done) {
-      iterator = generatorPosts();
+    if (!result) {
+      return func.apply(func, args);
     }
 
-    return result.value;
-  }
-
-  return { nextPosts };
+    return result;
+  };
 }
 
-const { nextPosts } = iteratorFactory();
+const memorizedRunPostsQuery =
+  memorisable<[start: number, end: number]>(runPostsQuery);
 
 let canLoad = true;
-let lastTenPostContainers: HTMLDivElement[];
+let postContainers: HTMLDivElement[] = [];
+
+function extracted(app: HTMLDivElement) {
+  const posts = memorizedRunPostsQuery(
+    postContainers.length,
+    postContainers.length + 10
+  );
+
+  for (let i = 0; i < posts.length; i++) {
+    const post = posts[i];
+    let postContainer: HTMLDivElement;
+
+    if (postContainers.length < 10) {
+      postContainer = document.createElement("div");
+      app.appendChild(postContainer);
+    } else {
+      postContainer = postContainers[i];
+
+      if (i === 1) {
+        console.log(postContainer.getBoundingClientRect().top);
+        window.scrollTo({ top: 0 });
+      }
+    }
+
+    postContainer.className = "post";
+    postContainer.textContent = post.text;
+    postContainer.style.background = post.backgroundColor;
+    postContainers.push(postContainer);
+  }
+}
 
 function handleScroll() {
-  if (lastTenPostContainers) {
-  }
+  const app = document.querySelector("#app") as HTMLDivElement;
 
-  if (lastTenPostContainers) {
-    const rect = lastTenPostContainers.slice(-1)[0];
-    const style = getComputedStyle(lastTenPostContainers);
+  if (postContainers.length) {
+    const lastPostContainer = postContainers.slice(-1)[0];
+    const style = getComputedStyle(lastPostContainer);
+    const rect = lastPostContainer.getBoundingClientRect();
     const bottomEdge =
       parseInt(style.paddingBottom) + parseInt(style.marginBottom);
-
     const visibilityRatio = (rect.bottom + bottomEdge) / window.outerHeight;
     const visibilityPercent = Math.floor(visibilityRatio * 100);
 
     if (visibilityPercent === 100) {
       canLoad = true;
     }
-  } else {
-    canLoad = false;
   }
 
   if (canLoad) {
-    const post = nextPost();
-    const app = document.querySelector("#app") as HTMLDivElement;
-    const div = document.createElement("div");
-    app.appendChild(div);
-    div.className = "post";
-    div.textContent = post.text;
-    div.style.background = post.backgroundColor;
-    lastTenPostContainers.push(div);
+    extracted(app);
+
+    canLoad = false;
   }
 
   // window.scrollY > rect.bottom - window.outerHeight
@@ -121,6 +133,8 @@ function handleScroll() {
 }
 
 export default function setupEventListeners() {
+  extracted(app);
+
   window.addEventListener("resize", handleResize);
   window.addEventListener("scroll", handleScroll);
 }
