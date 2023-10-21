@@ -10,9 +10,7 @@ const COLORS = [
   "#03a9f4",
   "#ff5722",
   "#4caf50",
-
   "#806e11",
-
   "#cd00e1",
 ];
 
@@ -35,25 +33,92 @@ function getPost(): IPost {
 function getPostByDetermine() {}
 
 function handleResize(event: Event) {
-  const root = event.target as HTMLDivElement;
-  const visibleRatios = 10;
+  // const root = event.target as HTMLDivElement;
+  // const visibleRatios = 10;
+
+  getPostByDetermine();
 }
 
-function handleScroll(event: Event) {
-  const doc = event.target as Document;
-  const app = doc.querySelector("#app") as HTMLDivElement;
-  const rect = app.getBoundingClientRect();
+const runPostsQuery = (): IPost[] => Array.from(new Array(10)).map(getPost);
 
-  const pagination = 10;
+const PAGE_THRESHOLD = 100;
 
-  for (let i = 0; i < pagination; i++) {
-    const post = getPost();
-    const div = document.createElement("div");
-    div.className = "post";
-    div.style.background = post.backgroundColor;
-    div.textContent = post.text;
-    app.appendChild(div);
+function memorisable<T extends any[]>(func: Function) {
+  let caches: Record<string, IPost[]> = {};
+
+  return function (...args: T) {
+    const key = args.map(String).join();
+    const result = caches[key];
+
+    console.log(key);
+
+    if (!result) {
+      return func.apply(func, args);
+    }
+
+    return result;
+  };
+}
+
+const memorizedRunPostsQuery =
+  memorisable<[start: number, end: number]>(runPostsQuery);
+
+let canLoad = true;
+let postContainers: HTMLDivElement[] = [];
+
+function extracted(app: HTMLDivElement) {
+  const posts = memorizedRunPostsQuery(
+    postContainers.length,
+    postContainers.length + 10
+  );
+
+  for (let i = 0; i < posts.length; i++) {
+    const post = posts[i];
+    let postContainer: HTMLDivElement;
+
+    if (postContainers.length < 10) {
+      postContainer = document.createElement("div");
+      app.appendChild(postContainer);
+    } else {
+      postContainer = postContainers[i];
+
+      if (i === 1) {
+        console.log(postContainer.getBoundingClientRect().top);
+        window.scrollTo({ top: 0 });
+      }
+    }
+
+    postContainer.className = "post";
+    postContainer.textContent = post.text;
+    postContainer.style.background = post.backgroundColor;
+    postContainers.push(postContainer);
   }
+}
+
+function handleScroll() {
+  const app = document.querySelector("#app") as HTMLDivElement;
+
+  if (postContainers.length) {
+    const lastPostContainer = postContainers.slice(-1)[0];
+    const style = getComputedStyle(lastPostContainer);
+    const rect = lastPostContainer.getBoundingClientRect();
+    const bottomEdge =
+      parseInt(style.paddingBottom) + parseInt(style.marginBottom);
+    const visibilityRatio = (rect.bottom + bottomEdge) / window.outerHeight;
+    const visibilityPercent = Math.floor(visibilityRatio * 100);
+
+    if (visibilityPercent === 100) {
+      canLoad = true;
+    }
+  }
+
+  if (canLoad) {
+    extracted(app);
+
+    canLoad = false;
+  }
+
+  // window.scrollY > rect.bottom - window.outerHeight
 
   //
   // const visiblePx =
@@ -68,6 +133,8 @@ function handleScroll(event: Event) {
 }
 
 export default function setupEventListeners() {
+  extracted(app);
+
   window.addEventListener("resize", handleResize);
   window.addEventListener("scroll", handleScroll);
 }
