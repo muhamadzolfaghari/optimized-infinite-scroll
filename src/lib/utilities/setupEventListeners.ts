@@ -66,11 +66,16 @@ const memorizedRunPostsQuery =
 let canLoad = true;
 let postContainers: HTMLDivElement[] = [];
 
-function extracted(app: HTMLDivElement) {
+function extracted() {
+  const app = document.querySelector("#app") as HTMLDivElement;
   const posts = memorizedRunPostsQuery(
     postContainers.length,
     postContainers.length + 10
   );
+
+  const gutter = document.createElement('div');
+  gutter.className = "gutter";
+  app.appendChild(gutter);
 
   for (let i = 0; i < posts.length; i++) {
     const post = posts[i];
@@ -84,7 +89,7 @@ function extracted(app: HTMLDivElement) {
 
       if (i === 1) {
         console.log(postContainer.getBoundingClientRect().top);
-        window.scrollTo({ top: 0 });
+        // window.scrollTo({ top: 0 });
       }
     }
 
@@ -114,7 +119,6 @@ function handleScroll() {
 
   if (canLoad) {
     extracted(app);
-
     canLoad = false;
   }
 
@@ -133,7 +137,7 @@ function handleScroll() {
 }
 
 export default function setupEventListeners() {
-  extracted(app);
+  extracted();
 
   window.addEventListener("resize", handleResize);
   window.addEventListener("scroll", handleScroll);
