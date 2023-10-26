@@ -32,50 +32,49 @@ function getPost(): IPost {
 
 function getPostByDetermine() {}
 
-function handleResize(event: Event) {
+function handleResize() {
   // const root = event.target as HTMLDivElement;
   // const visibleRatios = 10;
 
   getPostByDetermine();
 }
 
-const runPostsQuery = (): IPost[] => Array.from(new Array(10)).map(getPost);
+let timeoutId: number;
+let caches: Record<string, IPost[]> = {};
 
-const PAGE_THRESHOLD = 100;
+const runPostsQuery = (since: number): Promise<IPost[]> => {
+  clearTimeout(timeoutId);
+  let result = caches[since];
 
-function memorisable<T extends any[]>(func: Function) {
-  let caches: Record<string, IPost[]> = {};
-
-  return function (...args: T) {
-    const key = args.map(String).join();
-    const result = caches[key];
-
-    console.log(key);
-
-    if (!result) {
-      return func.apply(func, args);
+  return new Promise((resolve) => {
+    if (result) {
+      resolve(result);
     }
 
-    return result;
-  };
-}
+    timeoutId = setTimeout(() => {
+      result = [];
 
-const memorizedRunPostsQuery =
-  memorisable<[start: number, end: number]>(runPostsQuery);
+      for (let i = 0; i < 10; i++) {
+        result.push(getPost());
+      }
+      caches[since] = result;
 
-let canLoad = true;
+      resolve(result);
+    }, 1000);
+  });
+};
+
 let postContainers: HTMLDivElement[] = [];
 
-function extracted() {
+async function renderPosts(since: number) {
   const app = document.querySelector("#app") as HTMLDivElement;
-  const posts = memorizedRunPostsQuery(
-    postContainers.length,
-    postContainers.length + 10
-  );
+  const posts = await runPostsQuery(since);
 
-  const gutter = document.createElement('div');
-  gutter.className = "gutter";
-  app.appendChild(gutter);
+  if (!postContainers.length) {
+    const gutter = document.createElement("div");
+    gutter.id = "gutter-top";
+    app.appendChild(gutter);
+  }
 
   for (let i = 0; i < posts.length; i++) {
     const post = posts[i];
@@ -84,13 +83,14 @@ function extracted() {
     if (postContainers.length < 10) {
       postContainer = document.createElement("div");
       app.appendChild(postContainer);
+
+      if (i === 9) {
+        const gutter = document.createElement("div");
+        gutter.id = "gutter-bottom";
+        app.appendChild(gutter);
+      }
     } else {
       postContainer = postContainers[i];
-
-      if (i === 1) {
-        console.log(postContainer.getBoundingClientRect().top);
-        // window.scrollTo({ top: 0 });
-      }
     }
 
     postContainer.className = "post";
@@ -98,28 +98,78 @@ function extracted() {
     postContainer.style.background = post.backgroundColor;
     postContainers.push(postContainer);
   }
+
+  // window.scrollTo({
+  //   top:
+  //      postContainers.slice(-1)[0].getBoundingClientRect().bottom,
+  // });
 }
 
-function handleScroll() {
-  const app = document.querySelector("#app") as HTMLDivElement;
+function isOutOfTopEdge() {
+  const first = postContainers[0];
+  const rect = first.getBoundingClientRect();
+  const style = getComputedStyle(first);
+  const topEdge = parseInt(style.paddingTop) + parseInt(style.marginTop);
+  const ratio = (rect.top + topEdge) / window.outerHeight;
+  console.log((ratio * 100) === 0)
+
+
+  return topEdge - rect.top === 0;
+}
+
+function isOutOfBottomEdge() {
+  const last = postContainers.slice(-1)[0];
+  const rect = last.getBoundingClientRect();
+  const style = getComputedStyle(last);
+  const bottomEdge =
+    parseInt(style.paddingBottom) + parseInt(style.marginBottom);
+  const ratio = (rect.bottom + bottomEdge) / window.outerHeight;
+  return Math.floor(ratio * 100) === 100;
+}
+
+let prevScrollY = 0;
+let prevCount = 0;
+
+async function handleScroll() {
+  const gutterTop = document.querySelector("#gutter-top") as HTMLDivElement;
+  const scrollDirection = prevScrollY > window.scrollY ? "up" : "bottom";
+  prevScrollY = window.scrollY;
 
   if (postContainers.length) {
-    const lastPostContainer = postContainers.slice(-1)[0];
-    const style = getComputedStyle(lastPostContainer);
-    const rect = lastPostContainer.getBoundingClientRect();
-    const bottomEdge =
-      parseInt(style.paddingBottom) + parseInt(style.marginBottom);
-    const visibilityRatio = (rect.bottom + bottomEdge) / window.outerHeight;
-    const visibilityPercent = Math.floor(visibilityRatio * 100);
+    if (scrollDirection === "bottom") {
+      if (isOutOfBottomEdge()) {
+        const l = document.body.scrollHeight;
+        gutterTop.style.height = document.body.scrollHeight + "px";
+        window.scrollTo({ top: l });
+        await renderPosts(prevCount += 10);
+      }
+    } else if (scrollDirection === "up") {
+      if (isOutOfTopEdge()) {
+        if (prevCount === 0) {
+          return;
+        }
 
-    if (visibilityPercent === 100) {
-      canLoad = true;
+        await renderPosts(prevCount -= 10);
+        const height = postContainers.reduce(
+          (prev, cur) => prev + parseInt(getComputedStyle(cur).height),
+          0
+        );
+
+        window.scrollTo({ top: height - window.scrollY });
+
+        // if (height - parseInt(gutterTop.style.height) < 0) {
+        //   return
+        // }
+        gutterTop.style.height =
+          height - parseInt(gutterTop.style.height) + "px";
+        //
+        // window.scrollTo({ top: document.body.scrollHeight - height });
+        // gutterTop.style.height =
+        //   height - parseInt(gutterTop.style.height) + "px";
+
+        // window.scrollTo({top: 0});
+      }
     }
-  }
-
-  if (canLoad) {
-    extracted(app);
-    canLoad = false;
   }
 
   // window.scrollY > rect.bottom - window.outerHeight
@@ -137,8 +187,7 @@ function handleScroll() {
 }
 
 export default function setupEventListeners() {
-  extracted();
-
+  renderPosts(0, 10);
   window.addEventListener("resize", handleResize);
   window.addEventListener("scroll", handleScroll);
 }
